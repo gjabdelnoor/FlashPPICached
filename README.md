@@ -1,10 +1,12 @@
-# FlashPPI: Linear-time prediction of microbial protein interactomes
+# FlashPPI: Linear-time prediction of proteome-scale microbial protein interactions
 
 <a href="https://www.biorxiv.org/content/10.1101/XXX"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a>
 <a href="https://huggingface.co/tattabio/flashppi"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?label=Model" style="max-width: 100%;"></a>
 
+<img src="docs/images/figure1.png" alt="FlashPPI model overview" width="600"/>
+
 ## Model Description
-FlashPPI is a contrastive learning framework grounded in residue-level interactions that enables linear-time prediction of physical protein-protein interaction (PPI) interfaces across a microbial proteome. 
+FlashPPI is a contrastively model for protein-protein interaction (PPI) prediction, grounded in residue-level interactions, that enables linear-time prediction across a microbial proteome. 
 
 By reframing interactome mapping as a dense retrieval task, FlashPPI circumvents the $\mathcal{O}(N^2)$ computational bottleneck of traditional all-vs-all structural screening, enabling full-proteome predictions in minutes on a single GPU.
 
@@ -15,17 +17,21 @@ By reframing interactome mapping as a dense retrieval task, FlashPPI circumvents
 
 ## Installation
 
-Install the dependencies
-
 ```bash
 pip install -r requirements.txt
+```
+
+Optionally, install [Flash Attention](https://github.com/Dao-AILab/flash-attention) for faster inference on GPU:
+
+```bash
+pip install flash-attn --no-build-isolation
 ```
 
 ## Usage
 
 ### Fast Proteome-wide PPI Screening (All-vs-All)
 
-Run the prediction script by passing your proteome FASTA file. This script will embed all proteins in linear time, perform FAISS vector retrieval to find the top $k$ candidates for each protein, and predict fine-grained contact scores.
+Run the prediction script by passing your proteome FASTA file. It will output a predictions file with predicted pairs of interacting proteins and confidence scores.
 
 ```bash
 python predict_proteome.py --fasta my_proteome.fasta --output predictions.csv
