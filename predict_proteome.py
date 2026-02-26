@@ -4,6 +4,7 @@ import faiss
 import numpy as np
 import pandas as pd
 from Bio import SeqIO
+from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 from torch.nn.utils.rnn import pad_sequence
 
@@ -37,7 +38,7 @@ def main():
     query_embeds, key_embeds, residue_embeds_list, seq_lengths = [], [], [], []
 
     with torch.no_grad(), torch.autocast(device, dtype=torch.float16):
-        for i in range(0, len(sequences), args.batch_size):
+        for i in tqdm(range(0, len(sequences), args.batch_size), desc="Encoding", unit="batch"):
             batch_seqs = sequences[i : i + args.batch_size]
             inputs = tokenizer(batch_seqs, return_tensors="pt", padding=True, truncation=True, max_length=args.max_len).to(device)
             
@@ -57,11 +58,8 @@ def main():
     cu_seqlens = torch.zeros(len(seq_lengths) + 1, dtype=torch.long, device=device)
     cu_seqlens[1:] = torch.tensor(seq_lengths, dtype=torch.long, device=device).cumsum(0)
 
-    print("Stage 1.5: FAISS Retrieval...")
+    print("FAISS Retrieval...")
     index = faiss.IndexFlatIP(key_embeds.shape[1])
-    if device == "cuda":
-        res = faiss.StandardGpuResources()
-        index = faiss.index_cpu_to_gpu(res, 0, index)
     index.add(key_embeds)
     
     search_k = min(args.stage1_top_k + 1, len(sequences))
@@ -72,7 +70,7 @@ def main():
 
     results = []
     with torch.no_grad(), torch.autocast(device, dtype=torch.float16):
-        for i in range(0, len(inference_tasks), args.batch_size):
+        for i in tqdm(range(0, len(inference_tasks), args.batch_size), desc="Contact prediction", unit="batch"):
             batch = inference_tasks[i : i + args.batch_size]
             q_batch = [residue_embeds[cu_seqlens[q]:cu_seqlens[q+1]] for q, _ in batch]
             c_batch = [residue_embeds[cu_seqlens[c]:cu_seqlens[c+1]] for _, c in batch]

@@ -1,9 +1,13 @@
 # FlashPPI: Linear-time prediction of proteome-scale microbial protein interactions
 
-<a href="https://www.biorxiv.org/content/10.1101/XXX"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a>
-<a href="https://huggingface.co/tattabio/flashppi"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?label=Model" style="max-width: 100%;"></a>
+<p align="center">
+  <a href="https://www.biorxiv.org/content/10.1101/XXX"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a>
+  <a href="https://huggingface.co/tattabio/flashppi"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?label=Model" style="max-width: 100%;"></a>
+</p>
 
-<img src="docs/images/figure1.png" alt="FlashPPI model overview" width="600"/>
+<p align="center">
+  <img src="docs/images/figure1.png" alt="FlashPPI model overview" width="600"/>
+</p>
 
 ## Model Description
 FlashPPI is a contrastively model for protein-protein interaction (PPI) prediction, grounded in residue-level interactions, that enables linear-time prediction across a microbial proteome. 
