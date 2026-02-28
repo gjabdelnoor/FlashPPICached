@@ -34,8 +34,8 @@ pip install flash-attn --no-build-isolation
 ## Usage
 
 ### Fast Proteome-wide PPI Screening (All-vs-All)
-
 Run the prediction script by passing your proteome FASTA file. It will output a predictions file with predicted pairs of interacting proteins and confidence scores.
+Note: Requires a machine with at least 1 GPU.
 
 ```bash
 python predict_proteome.py --fasta my_proteome.fasta --output predictions.csv
@@ -81,7 +81,10 @@ plt.savefig("contact_map.png")
 ## Web Server
 You can upload a FASTA and interactively explore whole-proteome FlashPPI networks and contact maps directly at [seqhub.org](https://seqhub.org).
 
+## License
+The model code and inference scripts in this repository are licensed under the Apache License 2.0.
 
+The FlashPPI model weights are hosted on Hugging Face and released under the Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) license. The weights are freely available for academic and research purposes.
 ## Citing 
 If you use FlashPPI or our datasets in your research, please cite:
 
