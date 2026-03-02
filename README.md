@@ -1,7 +1,7 @@
 # FlashPPI: Linear-time prediction of proteome-scale microbial protein interactions
 
 <p align="center">
-  <a href="https://www.biorxiv.org/content/10.1101/XXX"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a>
+  <!-- <a href="https://www.biorxiv.org/content/10.1101/XXX"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a> -->
   <a href="https://huggingface.co/tattabio/flashppi"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?label=Model" style="max-width: 100%;"></a>
 </p>
 
@@ -93,6 +93,5 @@ If you use FlashPPI or our datasets in your research, please cite:
   author={Cornman, Andre and Tranzillo, Matt and Zulaybar, Nicolo and Bouzit, Imane and Hwang, Yunha},
   journal={bioRxiv},
   year={2026},
-  doi={10.1101/XXX}
 }
 ```
