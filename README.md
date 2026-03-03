@@ -41,6 +41,17 @@ Run the prediction script by passing your proteome FASTA file. It will output a 
 python predict_proteome.py --fasta my_proteome.fasta --output predictions.csv
 ```
 
+### Cross-Proteome PPI Screening (Host–Viral)
+
+Predict interactions between two proteomes, for example a viral genome and its host genome.
+
+```bash
+python predict_cross_proteome.py \
+    --host_fasta host.fasta \
+    --viral_fasta virus.fasta \
+    --output predictions.csv
+```
+
 ### Visualizing contact predictions
 
 ```python
