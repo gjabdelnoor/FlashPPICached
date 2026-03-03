@@ -1,7 +1,7 @@
 # FlashPPI: Linear-time prediction of proteome-scale microbial protein interactions
 
 <p align="center">
-  <a href="https://www.biorxiv.org/content/10.1101/XXX"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a>
+  <a href="https://www.biorxiv.org/content/10.64898/2026.03.01.708874v1"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a>
   <a href="https://huggingface.co/tattabio/flashppi"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?label=Model" style="max-width: 100%;"></a>
 </p>
 
@@ -10,14 +10,17 @@
 </p>
 
 ## Model Description
-FlashPPI is a contrastively model for protein-protein interaction (PPI) prediction, grounded in residue-level interactions, that enables linear-time prediction across a microbial proteome. 
+FlashPPI is a contrastively trained model for protein-protein interaction (PPI) prediction, grounded in residue-level interactions, that enables full-proteome interaction prediction in minutes.
 
-By reframing interactome mapping as a dense retrieval task, FlashPPI circumvents the $\mathcal{O}(N^2)$ computational bottleneck of traditional all-vs-all structural screening, enabling full-proteome predictions in minutes on a single GPU.
+By reframing PPI prediction as a dense retrieval task, FlashPPI circumvents the $\mathcal{O}(N^2)$ computational bottleneck of traditional all-vs-all structural screening.
 
-- **Genomic Priors:** Leverages [gLM2](https://huggingface.co/tattabio/gLM2_650M) initialization to capture cross-protein, multi-gene co-evolutionary signals.
-- **Interpretable:** Predicts fine-grained, residue-level 2D contact maps for retrieved interaction candidates.
 - **Scalable:** Reduces proteome-wide screening from days/months to minutes.
+- **Interpretable:** Predicts fine-grained, residue-level 2D contact maps for retrieved interaction candidates.
+- **Genomic Priors:** Leverages [gLM2](https://huggingface.co/tattabio/gLM2_650M) initialization to capture cross-protein, multi-gene co-evolutionary signals.
 
+
+## Web Server
+FlashPPI is integrated into [seqhub.org](https://seqhub.org). You can upload a FASTA and interactively explore whole-proteome networks and contact maps. Explore an example network [here](https://seqhub.org/tattabio/mycobacterium_tb?ppi=true).
 
 ## Installation
 
@@ -34,8 +37,8 @@ pip install flash-attn --no-build-isolation
 ## Usage
 
 ### Fast Proteome-wide PPI Screening (All-vs-All)
-
 Run the prediction script by passing your proteome FASTA file. It will output a predictions file with predicted pairs of interacting proteins and confidence scores.
+Note: Requires a machine with at least 1 GPU.
 
 ```bash
 python predict_proteome.py --fasta my_proteome.fasta --output predictions.csv
@@ -88,20 +91,21 @@ plt.imshow(contact_map, cmap="Blues", vmin=0, vmax=1)
 plt.savefig("contact_map.png")
 ```
 
+## License
+The model code and inference scripts in this repository are licensed under the Apache License 2.0.
 
-## Web Server
-You can upload a FASTA and interactively explore whole-proteome FlashPPI networks and contact maps directly at [seqhub.org](https://seqhub.org).
-
-
+The FlashPPI model weights are hosted on Hugging Face and released under the Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) license. The weights are freely available for academic and research purposes.
 ## Citing 
 If you use FlashPPI or our datasets in your research, please cite:
 
 ```
-@article{cornman2026flashppi,
-  title={Linear-time prediction of proteome-scale microbial protein interactions},
-  author={Cornman, Andre and Tranzillo, Matt and Zulaybar, Nicolo and Bouzit, Imane and Hwang, Yunha},
-  journal={bioRxiv},
-  year={2026},
-  doi={10.1101/XXX}
+@article {Cornman2026FlashPPI,
+	author = {Cornman, Andre and Tranzillo, Matt and Zulaybar, Nicolo G and Bouzit, Imane and Hwang, Yunha},
+	title = {Linear-time prediction of proteome-scale microbial protein interactions},
+	year = {2026},
+	doi = {10.64898/2026.03.01.708874},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2026/03/02/2026.03.01.708874},
+	journal = {bioRxiv}
 }
 ```
