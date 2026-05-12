@@ -91,10 +91,18 @@ plt.imshow(contact_map, cmap="Blues", vmin=0, vmax=1)
 plt.savefig("contact_map.png")
 ```
 
-## License
-The model code and inference scripts in this repository are licensed under the Apache License 2.0.
+## Training
 
-The FlashPPI model weights are hosted on Hugging Face and released under the Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) license. The weights are freely available for academic and research purposes.
+```bash
+# Multi-GPU
+accelerate launch --config_file configs_accelerate/multi_gpu.yaml -m flashppi.train configs_train/flashppi.yaml
+
+# Single CPU (testing)
+accelerate launch --config_file configs_accelerate/cpu.yaml -m flashppi.train configs_train/flashppi_ESM_small.yaml
+```
+
+## License
+This repository is licensed under the [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) license. Free for academic and research use.
 ## Citing 
 If you use FlashPPI or our datasets in your research, please cite:
 

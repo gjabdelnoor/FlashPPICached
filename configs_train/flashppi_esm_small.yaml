@@ -1,0 +1,50 @@
+# FlashPPI training config — ESM2 8M backbone (local testing)
+# Usage: accelerate launch -m flashppi.train configs_train/flashppi_ESM_small.yaml
+
+# --- Model ---
+plm_model_name: "facebook/esm2_t6_8M_UR50D"
+clip_embed_dim: 256
+contact_embed_dim: 256
+max_len: 512
+num_frozen_layers: 0
+gradient_checkpointing: false
+
+# --- Data ---
+dataset_path: "andrecornman/ppi_noecoli_pdb_v3"
+ddi_dataset: "andrecornman/ddi_noecoli_pdb_v3"
+ddi_sampling_weight: 0.5
+train_split: "train"
+val_split: "validation"
+use_cluster_weighted_sampling: false
+
+# --- Loss ---
+clip_loss_weight: 0.1
+contact_loss_weight: 1.0
+use_focal_loss: false
+contact_hard_neg_ratio: 0.0
+contact_random_neg_ratio: 1.0
+contact_self_neg_ratio: 1.0
+swap_self_negative: false
+
+# --- Optimizer ---
+learning_rate: 1e-4
+weight_decay: 0.01
+warmup_fraction: 0.05
+max_grad_norm: 1.0
+
+# --- Batch & GradCache ---
+batch_size: 4
+eval_batch_size: 32
+max_epochs: 2
+
+# --- Logging & Checkpointing ---
+output_dir: "checkpoints/flashppi_small"
+project_name: "flashppi"
+run_name: null
+use_wandb: false
+log_interval: 10
+eval_interval: 50
+save_interval: 500
+max_eval_examples: 256
+dataloader_num_workers: 0
+seed: 42

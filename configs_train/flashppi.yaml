@@ -1,0 +1,51 @@
+# FlashPPI training config — gLM2 650M backbone
+# Usage: accelerate launch -m flashppi.train configs_train/flashppi.yaml
+
+# --- Model ---
+plm_model_name: "tattabio/gLM2_650M_UR50"
+clip_embed_dim: 1024
+contact_embed_dim: 1280
+max_len: 512
+num_frozen_layers: 16
+gradient_checkpointing: true
+
+# --- Data ---
+dataset_path: "tattabio/ppi_pdb"
+ddi_dataset: null
+ddi_sampling_weight: 0.5
+train_split: "train"
+val_split: "validation"
+use_cluster_weighted_sampling: true
+
+# --- Loss ---
+clip_loss_weight: 0.1
+contact_loss_weight: 1.0
+use_focal_loss: true
+contact_hard_neg_ratio: 2.0
+contact_random_neg_ratio: 0.0
+contact_self_neg_ratio: 1.0
+swap_self_negative: true
+
+# --- Optimizer ---
+learning_rate: 5e-4
+weight_decay: 0.1
+warmup_fraction: 0.05
+max_grad_norm: 1.0
+
+# --- Batch & GradCache ---
+batch_size: 128
+grad_cache_chunk_size: 64
+eval_batch_size: 512
+max_epochs: 2
+
+# --- Logging & Checkpointing ---
+output_dir: "checkpoints/flashppi"
+project_name: "flashppi"
+run_name: null
+use_wandb: true
+log_interval: 1
+eval_interval: 200
+save_interval: 2000
+max_eval_examples: 3200
+dataloader_num_workers: 8
+seed: 42
