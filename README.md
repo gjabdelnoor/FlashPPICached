@@ -1,7 +1,7 @@
 # FlashPPI: Linear-time prediction of proteome-scale microbial protein interactions
 
 <p align="center">
-  <a href="https://www.biorxiv.org/content/10.64898/2026.03.01.708874v1"><img src="https://img.shields.io/badge/Paper-bioRxiv-red" style="max-width: 100%;"></a>
+  <a href="https://www.pnas.org/doi/abs/10.1073/pnas.2610619123"><img src="https://img.shields.io/badge/Paper-PNAS-navy" style="max-width: 100%;"></a>
   <a href="https://huggingface.co/tattabio/flashppi"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-blue?label=Model" style="max-width: 100%;"></a>
 </p>
 
@@ -107,13 +107,17 @@ This repository is licensed under the [CC BY-NC 4.0](https://creativecommons.org
 If you use FlashPPI or our datasets in your research, please cite:
 
 ```
-@article {Cornman2026FlashPPI,
-	author = {Cornman, Andre and Tranzillo, Matt and Zulaybar, Nicolo G and Bouzit, Imane and Hwang, Yunha},
-	title = {Linear-time prediction of proteome-scale microbial protein interactions},
-	year = {2026},
-	doi = {10.64898/2026.03.01.708874},
-	publisher = {Cold Spring Harbor Laboratory},
-	URL = {https://www.biorxiv.org/content/early/2026/03/02/2026.03.01.708874},
-	journal = {bioRxiv}
+@article{
+	  doi:10.1073/pnas.2610619123,
+	  author = {Andre Cornman  and Matt Tranzillo  and Nicolo G. Zulaybar  and Imane Bouzit  and Yunha Hwang },
+	  title = {Linear-time prediction of proteome-scale microbial protein interactions},
+	  journal = {Proceedings of the National Academy of Sciences},
+	  volume = {123},
+	  number = {25},
+	  pages = {e2610619123},
+	  year = {2026},
+	  doi = {10.1073/pnas.2610619123},
+	  URL = {https://www.pnas.org/doi/abs/10.1073/pnas.2610619123},
+	  eprint = {https://www.pnas.org/doi/pdf/10.1073/pnas.2610619123},
 }
 ```
