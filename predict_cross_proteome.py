@@ -161,8 +161,10 @@ def main():
             mask_q = (pad_q.abs().sum(dim=-1) != 0).long()
             mask_c = (pad_c.abs().sum(dim=-1) != 0).long()
 
-            logits, _ = model.predict_contacts(pad_q, pad_c, mask_q, mask_c)
-            scores = torch.sigmoid(logits).view(logits.size(0), -1).max(dim=-1).values.cpu().numpy()
+            logits, valid_mask = model.predict_contacts(pad_q, pad_c, mask_q, mask_c)
+            # exclude padded cells from the max, as FlashPPIModel.forward does
+            logits = logits.float().masked_fill(~valid_mask, float("-inf"))
+            scores = torch.sigmoid(logits.flatten(1).max(dim=-1).values).cpu().numpy()
 
             for k, (q_idx, c_idx, is_host) in enumerate(batch):
                 raw_predictions.append((q_idx, c_idx, float(scores[k]), is_host))
