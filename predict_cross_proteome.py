@@ -85,7 +85,7 @@ def main():
     parser.add_argument("--max_len", type=int, default=1024,
                         help="Maximum sequence length.")
     parser.add_argument("--cache_dir", type=str, default=None,
-                        help="If set, cache/reuse host proteome encodings here (keyed by host_fasta filename).")
+                        help="If set, cache/reuse host and viral proteome encodings here (keyed by filename).")
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -124,11 +124,18 @@ def main():
         )
         if host_cache:
             os.makedirs(args.cache_dir, exist_ok=True)
-            torch.save((host_k_embeds, host_residues), host_cache)
-    viral_q_embeds, viral_k_embeds, viral_residues = encode_proteome(
-        viral_sequences, model, tokenizer, device, args.batch_size, args.max_len,
-        desc="Encoding viral",
-    )
+            torch.save((host_k_embeds, [r.half() for r in host_residues]), host_cache)
+    viral_cache = os.path.join(args.cache_dir, os.path.basename(args.viral_fasta) + ".pt") if args.cache_dir else None
+    if viral_cache and os.path.exists(viral_cache):
+        viral_q_embeds, viral_k_embeds, viral_residues = torch.load(viral_cache, weights_only=False)
+    else:
+        viral_q_embeds, viral_k_embeds, viral_residues = encode_proteome(
+            viral_sequences, model, tokenizer, device, args.batch_size, args.max_len,
+            desc="Encoding viral",
+        )
+        if viral_cache:
+            os.makedirs(args.cache_dir, exist_ok=True)
+            torch.save((viral_q_embeds, viral_k_embeds, [r.half() for r in viral_residues]), viral_cache)
 
     n_host = len(host_sequences)
     n_viral = len(viral_sequences)
