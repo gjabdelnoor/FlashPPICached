@@ -46,7 +46,7 @@ ssh capsid 'mkdir -p ~/ppi-results'
 rsync -az "$STAGING/" capsid:~/ppi-results/
 ssh capsid "export PATH=\$HOME/.local/bin:\$PATH
             mc mb --ignore-existing $BUCKET >/dev/null
-            mc mirror --overwrite --quiet ~/ppi-results/ $BUCKET/"
+            mc mirror --overwrite --quiet ~/ppi-results/ $BUCKET/ >/dev/null"
 
 n=$(find "$STAGING" -name '*.csv' | wc -l)
 echo "synced $n result CSVs -> $BUCKET  ($(( n * 100 / 38285 ))% of 38,285 pairs)"
