@@ -17,6 +17,7 @@ Usage:
     --output predictions.csv
 """
 import argparse
+import os
 from collections import defaultdict
 
 import faiss
@@ -83,6 +84,8 @@ def main():
                         help="Batch size for model inference.")
     parser.add_argument("--max_len", type=int, default=1024,
                         help="Maximum sequence length.")
+    parser.add_argument("--cache_dir", type=str, default=None,
+                        help="If set, cache/reuse host proteome encodings here (keyed by host_fasta filename).")
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -111,10 +114,17 @@ def main():
 
     # Stage 1: Encode both proteomes
     print("\nStage 1: Encoding proteomes...")
-    _, host_k_embeds, host_residues = encode_proteome(
-        host_sequences, model, tokenizer, device, args.batch_size, args.max_len,
-        desc="Encoding host",
-    )
+    host_cache = os.path.join(args.cache_dir, os.path.basename(args.host_fasta) + ".pt") if args.cache_dir else None
+    if host_cache and os.path.exists(host_cache):
+        host_k_embeds, host_residues = torch.load(host_cache, weights_only=False)
+    else:
+        _, host_k_embeds, host_residues = encode_proteome(
+            host_sequences, model, tokenizer, device, args.batch_size, args.max_len,
+            desc="Encoding host",
+        )
+        if host_cache:
+            os.makedirs(args.cache_dir, exist_ok=True)
+            torch.save((host_k_embeds, host_residues), host_cache)
     viral_q_embeds, viral_k_embeds, viral_residues = encode_proteome(
         viral_sequences, model, tokenizer, device, args.batch_size, args.max_len,
         desc="Encoding viral",
