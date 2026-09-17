@@ -37,7 +37,7 @@ def encode_proteome(sequences, model, tokenizer, device, batch_size, max_len, de
     Returns:
         query_embeds: np.ndarray (N, D) - query projection embeddings
         key_embeds:   np.ndarray (N, D) - key projection embeddings
-        residue_list: list of CPU tensors, each (seq_len, D)
+        residue_list: list of device (GPU) tensors, each (seq_len, D)
     """
     query_embeds, key_embeds, residue_list = [], [], []
 
@@ -55,7 +55,7 @@ def encode_proteome(sequences, model, tokenizer, device, batch_size, max_len, de
 
             lengths = inputs["attention_mask"].sum(dim=1).tolist()
             for j, seq_len in enumerate(lengths):
-                residue_list.append(res_embed[j, :int(seq_len), :].cpu())
+                residue_list.append(res_embed[j, :int(seq_len), :])
 
     return (
         np.concatenate(query_embeds, axis=0),
@@ -124,7 +124,7 @@ def main():
         )
         if host_cache:
             os.makedirs(args.cache_dir, exist_ok=True)
-            torch.save((host_k_embeds, [r.half() for r in host_residues]), host_cache)
+            torch.save((host_k_embeds, host_residues), host_cache)
     viral_cache = os.path.join(args.cache_dir, os.path.basename(args.viral_fasta) + ".pt") if args.cache_dir else None
     if viral_cache and os.path.exists(viral_cache):
         viral_q_embeds, viral_k_embeds, viral_residues = torch.load(viral_cache, weights_only=False)
@@ -135,7 +135,7 @@ def main():
         )
         if viral_cache:
             os.makedirs(args.cache_dir, exist_ok=True)
-            torch.save((viral_q_embeds, viral_k_embeds, [r.half() for r in viral_residues]), viral_cache)
+            torch.save((viral_q_embeds, viral_k_embeds, viral_residues), viral_cache)
 
     n_host = len(host_sequences)
     n_viral = len(viral_sequences)
