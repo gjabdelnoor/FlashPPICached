@@ -80,7 +80,7 @@ def main():
                         help="Number of nearest neighbors to retrieve per viral protein in stage 1.")
     parser.add_argument("--threshold", type=float, default=0.4,
                         help="Contact score threshold to keep predictions.")
-    parser.add_argument("--batch_size", type=int, default=64,
+    parser.add_argument("--batch_size", type=int, default=32,
                         help="Batch size for model inference.")
     parser.add_argument("--max_len", type=int, default=1024,
                         help="Maximum sequence length.")
@@ -165,6 +165,8 @@ def main():
 
     # Stage 2: Fine-grained contact prediction
     combined_residues = host_residues + viral_residues
+    task_order = {(q, c): i for i, (q, c, _) in enumerate(inference_tasks)}
+    inference_tasks.sort(key=lambda t: (len(viral_residues[t[0]]), len(combined_residues[t[1]])))
 
     raw_predictions = []  # (viral_idx, combined_idx, contact_score, is_host)
 
@@ -175,8 +177,10 @@ def main():
 
             pad_q = pad_sequence([viral_residues[q].to(device) for q, _, _ in batch], batch_first=True)
             pad_c = pad_sequence([combined_residues[c].to(device) for _, c, _ in batch], batch_first=True)
-            mask_q = (pad_q.abs().sum(dim=-1) != 0).long()
-            mask_c = (pad_c.abs().sum(dim=-1) != 0).long()
+            len_q = torch.tensor([len(viral_residues[q]) for q, _, _ in batch], device=device)
+            len_c = torch.tensor([len(combined_residues[c]) for _, c, _ in batch], device=device)
+            mask_q = (torch.arange(pad_q.shape[1], device=device)[None, :] < len_q[:, None]).long()
+            mask_c = (torch.arange(pad_c.shape[1], device=device)[None, :] < len_c[:, None]).long()
 
             logits, valid_mask = model.predict_contacts(pad_q, pad_c, mask_q, mask_c)
             # exclude padded cells from the max, as FlashPPIModel.forward does
@@ -187,6 +191,7 @@ def main():
                 raw_predictions.append((q_idx, c_idx, float(scores[k]), is_host))
 
     # Group by viral protein: pick best host match, annotate host_is_best_contact
+    raw_predictions.sort(key=lambda p: task_order[p[:2]])  # Preserve FAISS tie-breaking and CSV order.
     query_predictions = defaultdict(list)
     for q_idx, c_idx, score, is_host in raw_predictions:
         query_predictions[q_idx].append((c_idx, score, is_host))
