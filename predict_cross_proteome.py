@@ -17,6 +17,7 @@ Usage:
     --output predictions.csv
 """
 import argparse
+import os
 from collections import defaultdict
 
 import faiss
@@ -36,7 +37,7 @@ def encode_proteome(sequences, model, tokenizer, device, batch_size, max_len, de
     Returns:
         query_embeds: np.ndarray (N, D) - query projection embeddings
         key_embeds:   np.ndarray (N, D) - key projection embeddings
-        residue_list: list of CPU tensors, each (seq_len, D)
+        residue_list: list of device (GPU) tensors, each (seq_len, D)
     """
     query_embeds, key_embeds, residue_list = [], [], []
 
@@ -54,7 +55,7 @@ def encode_proteome(sequences, model, tokenizer, device, batch_size, max_len, de
 
             lengths = inputs["attention_mask"].sum(dim=1).tolist()
             for j, seq_len in enumerate(lengths):
-                residue_list.append(res_embed[j, :int(seq_len), :].cpu())
+                residue_list.append(res_embed[j, :int(seq_len), :])
 
     return (
         np.concatenate(query_embeds, axis=0),
@@ -79,10 +80,12 @@ def main():
                         help="Number of nearest neighbors to retrieve per viral protein in stage 1.")
     parser.add_argument("--threshold", type=float, default=0.4,
                         help="Contact score threshold to keep predictions.")
-    parser.add_argument("--batch_size", type=int, default=64,
+    parser.add_argument("--batch_size", type=int, default=32,
                         help="Batch size for model inference.")
     parser.add_argument("--max_len", type=int, default=1024,
                         help="Maximum sequence length.")
+    parser.add_argument("--cache_dir", type=str, default=None,
+                        help="If set, cache/reuse host and viral proteome encodings here (keyed by filename).")
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -111,14 +114,28 @@ def main():
 
     # Stage 1: Encode both proteomes
     print("\nStage 1: Encoding proteomes...")
-    _, host_k_embeds, host_residues = encode_proteome(
-        host_sequences, model, tokenizer, device, args.batch_size, args.max_len,
-        desc="Encoding host",
-    )
-    viral_q_embeds, viral_k_embeds, viral_residues = encode_proteome(
-        viral_sequences, model, tokenizer, device, args.batch_size, args.max_len,
-        desc="Encoding viral",
-    )
+    host_cache = os.path.join(args.cache_dir, os.path.basename(args.host_fasta) + ".pt") if args.cache_dir else None
+    if host_cache and os.path.exists(host_cache):
+        host_k_embeds, host_residues = torch.load(host_cache, weights_only=False)
+    else:
+        _, host_k_embeds, host_residues = encode_proteome(
+            host_sequences, model, tokenizer, device, args.batch_size, args.max_len,
+            desc="Encoding host",
+        )
+        if host_cache:
+            os.makedirs(args.cache_dir, exist_ok=True)
+            torch.save((host_k_embeds, host_residues), host_cache)
+    viral_cache = os.path.join(args.cache_dir, os.path.basename(args.viral_fasta) + ".pt") if args.cache_dir else None
+    if viral_cache and os.path.exists(viral_cache):
+        viral_q_embeds, viral_k_embeds, viral_residues = torch.load(viral_cache, weights_only=False)
+    else:
+        viral_q_embeds, viral_k_embeds, viral_residues = encode_proteome(
+            viral_sequences, model, tokenizer, device, args.batch_size, args.max_len,
+            desc="Encoding viral",
+        )
+        if viral_cache:
+            os.makedirs(args.cache_dir, exist_ok=True)
+            torch.save((viral_q_embeds, viral_k_embeds, viral_residues), viral_cache)
 
     n_host = len(host_sequences)
     n_viral = len(viral_sequences)
@@ -148,6 +165,8 @@ def main():
 
     # Stage 2: Fine-grained contact prediction
     combined_residues = host_residues + viral_residues
+    task_order = {(q, c): i for i, (q, c, _) in enumerate(inference_tasks)}
+    inference_tasks.sort(key=lambda t: (len(viral_residues[t[0]]), len(combined_residues[t[1]])))
 
     raw_predictions = []  # (viral_idx, combined_idx, contact_score, is_host)
 
@@ -158,8 +177,10 @@ def main():
 
             pad_q = pad_sequence([viral_residues[q].to(device) for q, _, _ in batch], batch_first=True)
             pad_c = pad_sequence([combined_residues[c].to(device) for _, c, _ in batch], batch_first=True)
-            mask_q = (pad_q.abs().sum(dim=-1) != 0).long()
-            mask_c = (pad_c.abs().sum(dim=-1) != 0).long()
+            len_q = torch.tensor([len(viral_residues[q]) for q, _, _ in batch], device=device)
+            len_c = torch.tensor([len(combined_residues[c]) for _, c, _ in batch], device=device)
+            mask_q = (torch.arange(pad_q.shape[1], device=device)[None, :] < len_q[:, None]).long()
+            mask_c = (torch.arange(pad_c.shape[1], device=device)[None, :] < len_c[:, None]).long()
 
             logits, valid_mask = model.predict_contacts(pad_q, pad_c, mask_q, mask_c)
             # exclude padded cells from the max, as FlashPPIModel.forward does
@@ -170,6 +191,7 @@ def main():
                 raw_predictions.append((q_idx, c_idx, float(scores[k]), is_host))
 
     # Group by viral protein: pick best host match, annotate host_is_best_contact
+    raw_predictions.sort(key=lambda p: task_order[p[:2]])  # Preserve FAISS tie-breaking and CSV order.
     query_predictions = defaultdict(list)
     for q_idx, c_idx, score, is_host in raw_predictions:
         query_predictions[q_idx].append((c_idx, score, is_host))
