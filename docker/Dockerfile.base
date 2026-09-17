@@ -1,0 +1,46 @@
+# proteome-base:cu130
+#
+# General-purpose GPU image for proteome / protein-language-model work.
+# It pins the exact interpreter and wheel set captured from the RTX A6000 box
+# ("thunder") on 2026-09-17, so any proteome project starts from a known-good
+# environment instead of re-resolving dependencies.
+#
+# Deliberately has no pipeline code in it -- flashppi-vhppi builds FROM this,
+# and so can anything else that needs torch + transformers + faiss + biopython.
+FROM docker.io/nvidia/cuda:13.0.2-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_LINK_MODE=copy \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# uv pins the interpreter itself, not just the wheels -- Ubuntu 24.04 ships
+# Python 3.12.3. The source environment ran 3.12.13, which python-build-standalone
+# does not publish; 3.12.12 is its newest 3.12. Same cp312 ABI, so every pinned
+# wheel below is bit-identical either way.
+ARG PYTHON_VERSION=3.12.12
+COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /usr/local/bin/uv
+RUN uv python install "$PYTHON_VERSION" \
+    && uv venv --python "$PYTHON_VERSION" "$VIRTUAL_ENV"
+
+COPY docker/requirements.lock.txt /opt/requirements.lock.txt
+
+# The cu130 torch build lives on the PyTorch index while the nvidia-*-cu13
+# runtime shims live on PyPI, so both indexes are needed and the resolver has
+# to be allowed to mix them.
+RUN uv pip install --python "$VIRTUAL_ENV/bin/python" \
+        --index-strategy unsafe-best-match \
+        --extra-index-url https://download.pytorch.org/whl/cu130 \
+        -r /opt/requirements.lock.txt \
+    && uv cache clean
+
+WORKDIR /work
+CMD ["python"]

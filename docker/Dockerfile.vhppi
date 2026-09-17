@@ -1,0 +1,36 @@
+# flashppi-vhppi:current
+#
+# Frozen state of the viral-host protein-interaction sweep as it ran on
+# 2026-09-17: 403 host proteomes x 95 viral proteomes, length-bucketed contact
+# batching at batch_size 32.
+#
+# The 2.8 GB FlashPPI checkpoint is baked in so the image is self-contained for
+# inference. FASTA inputs, the viral embedding cache and the output CSVs are
+# mounted, so the same image can be pointed at a different dataset.
+ARG BASE_IMAGE=proteome-base:cu130
+FROM ${BASE_IMAGE}
+
+# Build context is the repo root, so the image gets the tracked sources
+# directly -- no vendored copy to drift out of sync with the branch.
+COPY flashppi/ /opt/flashppi/flashppi/
+COPY cache_utils.py predict_cross_proteome.py predict_host_batch.py \
+     warm_viral_cache.py /opt/flashppi/
+COPY docker/entrypoint.sh /opt/flashppi/entrypoint.sh
+
+# Not tracked by git (2.8 GB); stage it into the context before building.
+COPY models/flashppi/ /opt/models/flashppi/
+
+ENV FLASHPPI_MODEL=/opt/models/flashppi \
+    HOST_DIR=/data/proteomes \
+    VIRAL_DIR=/data/viral_proteomes \
+    VIRAL_CACHE_DIR=/cache \
+    OUT_DIR=/output \
+    NUM_SHARDS=3 \
+    BATCH_SIZE=32 \
+    PYTHONPATH=/opt/flashppi
+
+RUN chmod +x /opt/flashppi/entrypoint.sh && mkdir -p /data /cache /output
+
+WORKDIR /opt/flashppi
+ENTRYPOINT ["/opt/flashppi/entrypoint.sh"]
+CMD ["sweep"]

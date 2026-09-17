@@ -1,0 +1,32 @@
+# Viral-host PPI sweep. Build context is the repo root so the image gets the
+# tracked sources; stage models/flashppi/ there first (see docker/README.md).
+# Point the bind mounts anywhere the same directories exist.
+services:
+  base:
+    image: proteome-base:cu130
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.base
+
+  sweep:
+    image: flashppi-vhppi:current
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.vhppi
+    depends_on:
+      - base
+    environment:
+      NUM_SHARDS: "3"
+      BATCH_SIZE: "32"
+    volumes:
+      - ../data:/data:ro
+      - ../viral_cache:/cache
+      - ../output:/output
+    # ~9 GiB of VRAM and ~5 GiB of RAM per shard; three fit a 48 GB A6000.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

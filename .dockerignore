@@ -1,0 +1,21 @@
+# Build context is the repo root. Keep the checkpoint (2.8 GB) out of the
+# context transfer but let the Dockerfile's explicit COPY of models/flashppi/
+# through -- everything else under models/ is scratch.
+.git
+**/__pycache__
+**/*.pyc
+**/.mypy_cache
+docs
+tests
+configs_train
+configs_accelerate
+
+data
+viral_cache
+output
+results-staging
+*.tar
+
+models/*
+!models/flashppi
+models/flashppi/*.log
