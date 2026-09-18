@@ -145,9 +145,80 @@ with the batch and 8 wins instead.
 
 ## Throughput
 
-On one A6000 with `NUM_SHARDS=2`: ~24.7 s per host×viral pair combined, plus
-~3.7 min to encode each host proteome once. The full 403 × 95 = 38,285-pair
-sweep takes roughly 11–12 days.
+Measured on an A6000, one worker per box, `--residue_device cuda`:
+
+| | |
+|---|---|
+| Per pair | 8–16 s, depending on host size |
+| Per host | ~2 min encode + 95 pairs |
+| Sustained GPU | 100% util, 290–297 W of a 300 W cap |
+
+The card is **power-saturated, not FLOP-saturated**: 297 W of 300 W with clocks
+throttled 2100 → 1616 MHz while sitting at ~13% of peak FLOPS. That is why a
+second worker does not help — it splits the same power budget rather than
+expanding it. Measured A/B: worker 1 stayed at ~16 s/pair while worker 2
+produced nothing and halved its own encode rate. One worker per card.
+
+The 46 → 9 s/pair improvement came from removing stalls, not from buying
+compute. Three separate PCIe crossings per batch were the cause; see the commit
+message for `00ca741`.
+
+## Fleet operations
+
+Three A6000 boxes sweep disjoint slices of the 403-host list and skip any pair
+whose CSV already exists, so they never redo each other's work.
+
+```
+thunder   indices 4 →                  # walks up
+thunder2  indices 134 →                # 1/3 mark
+thunder3  indices 268 →                # 2/3 mark
+```
+
+Each box walks *forward* from a fixed start rather than two converging from
+opposite ends, because the midpoint of a converging pair is not knowable in
+advance — the hosts differ in size by 2×, so "half the list" is not half the
+time. Fixed thirds are predictable.
+
+**Standing up a new box** — nothing is baked into the image, so a bare box goes
+from nothing to working in ~15 min:
+
+```bash
+# One-time: give the new box a way to authenticate. It generates its own
+# keypair; only the PUBLIC half goes to the source box, so no private key is
+# ever written to rented disk.
+ssh new 'ssh-keygen -t ed25519 -f ~/.ssh/pull -N "" -C newbox-pull'
+ssh new 'cat ~/.ssh/pull.pub' | ssh src 'cat >> ~/.ssh/authorized_keys'
+
+# Then stage it. bootstrap_node.sh probes the source for its layout and
+# payload root, verifies the model sha256, installs tmux if missing, and
+# builds the venv from the same lockfile the Docker image uses.
+SRC=<source-ip> SRC_PORT=<port> SRC_KEY=~/.ssh/pull \
+  ssh new 'bash -s' < bootstrap_node.sh
+
+START=<index> bash restart_forward.sh 1
+```
+
+Two things that will bite you:
+
+- **NAT hairpin.** Boxes behind the same public IP (thunder and thunder3 share
+  one, on different ports) cannot reach each other. Route the pull through a box
+  on a different IP.
+- **`tnr connect` writes `Host tnr-0`.** OpenSSH takes the FIRST match for each
+  option, so a second instance's block is silently shadowed and every command
+  lands on the wrong box. Rename it per instance.
+
+**Shipping results to capsid** — `flashppi-sync.service` runs
+`sync_daemon.sh` on the always-on hop (see the unit file for why it cannot run
+on a worker). Every 10 min it merges all boxes into one staging dir, pushes the
+union back to each box so the "already done" check sees everyone's work, and
+mirrors to `capsid:~/ppi-results` → MinIO `local/flashppi-results`.
+
+```bash
+install -Dm644 flashppi-sync.service ~/.config/systemd/user/flashppi-sync.service
+systemctl --user daemon-reload && systemctl --user enable --now flashppi-sync.service
+```
+
+Requires `loginctl enable-linger $USER` so it survives logout and reboot.
 
 ## Reproducing the exact September 2026 run
 
@@ -160,3 +231,9 @@ Numerics note: length bucketing changes which sequences share a batch, so fp16
 contact scores shift by up to 3.8e-4 versus the unbucketed order. Across the
 full 30,792-pair validation that moved no reported interaction and crossed no
 0.4 threshold. The mask rewrite alone is bit-identical.
+
+Cross-box consistency: every box in the fleet runs the same
+`model.safetensors` (`783abc99…f223f2c`) and the same viral input
+(`3d030c27…`), verified by sha256 rather than assumed. A box that pulls weights
+from HuggingFace instead of from another fleet box is a different experiment,
+not a faster download — `bootstrap_node.sh` hard-fails on a sha mismatch.

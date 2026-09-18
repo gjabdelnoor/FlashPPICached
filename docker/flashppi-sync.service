@@ -1,0 +1,32 @@
+[Unit]
+Description=Sync FlashPPI sweep results from compute boxes to capsid MinIO
+Documentation=file:%h/projects/ppi/sync/sync_daemon.sh
+After=network-online.target
+
+[Service]
+Type=simple
+# Install this on the always-on hop, not on a compute box.
+#
+# Only one host in the fleet can see both ends: the compute boxes are rented
+# and live on the public internet, while capsid is behind UPRM, which blocks
+# :22 and :9000 inbound and does not resolve for the boxes at all. So the sync
+# cannot run on a worker however it is written. It runs on whichever machine
+# has keys for the boxes AND a route to capsid.
+#
+# That machine should be always-on. It was originally the Framework laptop,
+# which was only ever the hop by accident (it happened to hold the keys), and
+# a sync that runs only while a lid is open misses hours at a time -- the
+# entire point is that results reach capsid unattended. Moved to the desktop,
+# which is always on and sits on the lab network with a direct path to capsid.
+#
+# Restart=always rather than on-failure: the boxes bounce (a rented instance
+# gets replaced and rsync fails until the ssh alias is repointed), which is an
+# expected steady state, not a fault worth stopping over. sync_results.sh
+# already tolerates an unreachable node per-pass; this catches the rest.
+ExecStart=%h/projects/ppi/sync/sync_daemon.sh 600
+Restart=always
+RestartSec=60
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
