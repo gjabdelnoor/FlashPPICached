@@ -23,32 +23,52 @@ TOTAL_PAIRS="${TOTAL_PAIRS:-38285}"
 # is data, not code -- override with NODES="..." rather than editing the loop.
 # `thunder` and `thunder2` are ssh-config aliases, so their IPs and ports live
 # in ~/.ssh/config and nothing here goes stale when an instance is replaced.
-NODES="${NODES:-thunder:/home/ubuntu/projects/ppi/output thunder2:/home/ubuntu/ppi/output thunder3:/home/ubuntu/ppi/output}"
+#
+# The sentinel host `self` means "this machine, no ssh" -- needed because the
+# box running the sync can also be a compute box, and if its directory is not
+# in this list its output never leaves the machine. That happened: the 3060
+# produced 190 pairs that sat in ~/projects/ppi/output while the sync reported
+# success every ten minutes, because the list only named the three A6000s.
+NODES="${NODES:-self:$HOME/projects/ppi/output thunder:/home/ubuntu/projects/ppi/output thunder2:/home/ubuntu/ppi/output thunder3:/home/ubuntu/ppi/output}"
 
 mkdir -p "$STAGING"
+
+# Pull from one node into staging. `self` is read locally; everything else over
+# ssh with a reachability pre-check.
+pull_node() {
+    host="${1%%:*}"; dir="${1#*:}"
+    if [ "$host" = "self" ]; then
+        [ -d "$dir" ] || { echo "  (self $dir missing, skipping)"; return 0; }
+        rsync -az --include='*.csv' --exclude='*' "$dir/" "$STAGING/"
+    elif ssh -o ConnectTimeout=15 -o BatchMode=yes "$host" true 2>/dev/null; then
+        rsync -az --include='*.csv' --exclude='*' "$host:$dir/" "$STAGING/"
+    else
+        echo "  ($host unreachable, skipping)"
+    fi
+}
+
+# Push the union back, so each box's "already done?" check sees every box's
+# work. --ignore-existing: never overwrite a box's fresh output with an older copy.
+push_node() {
+    host="${1%%:*}"; dir="${1#*:}"
+    if [ "$host" = "self" ]; then
+        [ -d "$dir" ] && rsync -az --ignore-existing "$STAGING/" "$dir/" || true
+    elif ssh -o ConnectTimeout=15 -o BatchMode=yes "$host" true 2>/dev/null; then
+        rsync -az --ignore-existing "$STAGING/" "$host:$dir/" 2>/dev/null || true
+    fi
+}
 
 # Only completed CSVs. The .log files are still being appended by live workers,
 # so including them would force a resync on every pass.
 i=0
 for node in $NODES; do
-    host="${node%%:*}"
-    dir="${node#*:}"
     i=$((i + 1))
-    if ssh -o ConnectTimeout=15 -o BatchMode=yes "$host" true 2>/dev/null; then
-        echo "[$i] $host -> staging"
-        rsync -az --include='*.csv' --exclude='*' "$host:$dir/" "$STAGING/"
-    else
-        echo "[$i] $host unreachable, skipping"
-    fi
+    echo "[$i] ${node%%:*} -> staging"
+    pull_node "$node"
 done
 
-# --ignore-existing: never overwrite a box's own fresh output with an older copy.
 for node in $NODES; do
-    host="${node%%:*}"
-    dir="${node#*:}"
-    ssh -o ConnectTimeout=15 -o BatchMode=yes "$host" true 2>/dev/null || continue
-    rsync -az --ignore-existing "$STAGING/" "$host:$dir/" 2>/dev/null \
-        || echo "  ($host push failed, continuing)"
+    push_node "$node"
 done
 
 echo "[+] staging -> capsid -> MinIO ($BUCKET)"
