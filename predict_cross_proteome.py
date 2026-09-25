@@ -55,7 +55,7 @@ def encode_proteome(sequences, model, tokenizer, device, batch_size, max_len, de
 
             lengths = inputs["attention_mask"].sum(dim=1).tolist()
             for j, seq_len in enumerate(lengths):
-                residue_list.append(res_embed[j, :int(seq_len), :])
+                residue_list.append(res_embed[j, :int(seq_len), :].clone())
 
     return (
         np.concatenate(query_embeds, axis=0),
@@ -80,7 +80,7 @@ def main():
                         help="Number of nearest neighbors to retrieve per viral protein in stage 1.")
     parser.add_argument("--threshold", type=float, default=0.4,
                         help="Contact score threshold to keep predictions.")
-    parser.add_argument("--batch_size", type=int, default=32,
+    parser.add_argument("--batch_size", type=int, default=1,
                         help="Batch size for model inference.")
     parser.add_argument("--max_len", type=int, default=1024,
                         help="Maximum sequence length.")
@@ -164,6 +164,7 @@ def main():
     print(f"Found {len(inference_tasks)} candidate pairs. Starting contact prediction...")
 
     # Stage 2: Fine-grained contact prediction
+    model.plm.cpu(); model.head_q.cpu(); model.head_k.cpu()
     combined_residues = host_residues + viral_residues
     task_order = {(q, c): i for i, (q, c, _) in enumerate(inference_tasks)}
     inference_tasks.sort(key=lambda t: (len(viral_residues[t[0]]), len(combined_residues[t[1]])))
