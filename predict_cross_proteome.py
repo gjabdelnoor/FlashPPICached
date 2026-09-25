@@ -55,7 +55,7 @@ def encode_proteome(sequences, model, tokenizer, device, batch_size, max_len, de
 
             lengths = inputs["attention_mask"].sum(dim=1).tolist()
             for j, seq_len in enumerate(lengths):
-                residue_list.append(res_embed[j, :int(seq_len), :].clone())
+                residue_list.append(res_embed[j, :int(seq_len), :].half().clone())
 
     return (
         np.concatenate(query_embeds, axis=0),
