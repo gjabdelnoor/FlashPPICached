@@ -80,7 +80,7 @@ def main():
                         help="Number of nearest neighbors to retrieve per viral protein in stage 1.")
     parser.add_argument("--threshold", type=float, default=0.4,
                         help="Contact score threshold to keep predictions.")
-    parser.add_argument("--batch_size", type=int, default=1,
+    parser.add_argument("--batch_size", type=int, default=2,
                         help="Batch size for model inference.")
     parser.add_argument("--max_len", type=int, default=1024,
                         help="Maximum sequence length.")
