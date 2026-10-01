@@ -9,6 +9,21 @@
   <img src="docs/images/figure1.png" alt="FlashPPI model overview" width="600"/>
 </p>
 
+## Performance
+
+Upstream encodes the host proteome again on every run. This fork encodes it once per sweep - 4,306 host proteins instead of 86,120 across 20 runs - and keeps residues, lengths and scores on the GPU so batches stop crossing PCIe.
+
+**Versus upstream** (RTX 5090, cold start, 1 host × 20 viral proteomes): 1,703 s down to 225 s - 7.6×. Both versions predict the same 112 pairs, and candidate scores agree within 5.5e-4. Each tool ran once at its default batch size (64 upstream, 32 here). I started a batch-size sweep and didn't finish it. In the partial data upstream got faster as the batch shrank - on the smallest virus, 7% less time at batch 32 and 23% less at batch 16 than at 64 (one run each) - so a tuned upstream closes some of this gap.
+
+**Transfer savings, same encoder workload:**
+
+| Machine | Change | Result |
+|---|---|---|
+| Thunder, RTX A6000 | all per-batch PCIe traffic cut | 46 → 16.2 s/pair (2.8×, n=60); 8–10 s/pair after later fixes |
+| Vast.ai, RTX 5090 | residue placement only (`--residue_device cpu` → `cuda`) | scoring 181.5 → 139.6 s over 282,805 pairs (1.30×); 1.21× end-to-end |
+
+Link speed should matter - the fix removes PCIe traffic, so a PCIe 4.0 x1 link should gain more than 5.0 x16. That's a prediction. I never recorded link generation or width on either machine, and the two rows use different GPUs, datasets and change scopes, so don't compare them to each other.
+
 ## Model Description
 FlashPPI is a contrastively trained model for protein-protein interaction (PPI) prediction, grounded in residue-level interactions, that enables full-proteome interaction prediction in minutes.
 
