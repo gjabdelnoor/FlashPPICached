@@ -42,14 +42,17 @@ def main():
     p.add_argument("--threshold", type=float, default=0.4)
     p.add_argument("--batch_size", type=int, default=32)
     p.add_argument("--max_len", type=int, default=1024)
-    # Residues are cached on the CPU so that host proteome size does not drive
-    # VRAM (see cache_utils.py). That costs a host-to-device copy per tensor per
-    # batch, and the same host protein is copied again every time it comes back
-    # as a candidate -- with 100 candidates per query that is hundreds of
-    # transfers of the same few hundred KB. On a card with room to spare, park
-    # the residues on the GPU once instead: ~3.6 GiB for a 4933-protein
+    # Residues live on the GPU by default. Keeping them on the CPU costs a
+    # host-to-device copy per tensor per batch, and the same host protein is
+    # copied again every time it comes back as a candidate -- with 100
+    # candidates per query that is hundreds of transfers of the same few
+    # hundred KB. Parked on the GPU once they take ~3.6 GiB for a 4933-protein
     # proteome, after which the .to(device) calls in the batch loop are no-ops.
-    p.add_argument("--residue_device", choices=["cpu", "cuda"], default="cpu")
+    # "cuda" is a request, not a promise: encode_proteome spills the remainder
+    # to the host when free VRAM drops under the headroom (see cache_utils.py),
+    # so a small card degrades to the old behaviour instead of OOMing. Pass
+    # "cpu" to keep residues off the GPU entirely. No CUDA falls back to cpu.
+    p.add_argument("--residue_device", choices=["cpu", "cuda"], default="cuda")
     # Two headrooms, because the two phases defend against different peaks and a
     # single number cannot serve both. Encoding runs one PLM forward at a time
     # and needs little slack, so a small reserve there keeps the maximum number
